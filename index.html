@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Website Speed Checker</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+  }
+  
+  .container {
+    text-align: center;
+    margin: auto;
+    padding: 20px;
+    max-width: 600px;
+  }
+  
+  input[type="text"] {
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 10px;
+    width: calc(100% - 20px);
+  }
+  
+  #check-button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  #result {
+    margin-top: 20px;
+    text-align: left;
+  }
+  
+  .checked-list {
+    margin-top: 20px;
+    text-align: left;
+  }
+  
+  @media screen and (max-width: 600px) {
+    .container {
+      padding: 10px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <input type="text" id="url-input" placeholder="Enter URL">
+  <button id="check-button">Check Website Speed</button>
+  <div id="result"></div>
+  <div class="checked-list" id="checked-list"></div>
+</div>
+
+<script>
+  document.getElementById('check-button').addEventListener('click', function() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) {
+      alert('Please enter a valid URL.');
+      return;
+    }
+
+    const startTime = performance.now();
+    fetch(url)
+      .then(response => {
+        const endTime = performance.now();
+        const loadTime = endTime - startTime;
+        const currentTime = new Date().toLocaleString();
+        const performanceTiming = window.performance.timing;
+        const dnsLookupTime = performanceTiming.domainLookupEnd - performanceTiming.domainLookupStart;
+        const connectionTime = performanceTiming.connectEnd - performanceTiming.connectStart;
+        const ttfb = performanceTiming.responseStart - performanceTiming.requestStart;
+        const downloadTime = performanceTiming.responseEnd - performanceTiming.responseStart;
+        const totalTime = performanceTiming.loadEventEnd - performanceTiming.navigationStart;
+        const resultHtml = `
+          <strong>Website:</strong> ${url}<br>
+          <strong>Load Time:</strong> ${loadTime.toFixed(2)} milliseconds<br>
+          <strong>TTFB:</strong> ${ttfb.toFixed(2)} milliseconds<br>
+          <strong>DNS Lookup Time:</strong> ${dnsLookupTime.toFixed(2)} milliseconds<br>
+          <strong>Connection Time:</strong> ${connectionTime.toFixed(2)} milliseconds<br>
+          <strong>Download Time:</strong> ${downloadTime.toFixed(2)} milliseconds<br>
+          <strong>Total Time:</strong> ${totalTime.toFixed(2)} milliseconds<br>
+          <strong>Status Code:</strong> ${response.status} ${response.statusText}<br>
+          <strong>Response Time:</strong> ${(endTime - startTime).toFixed(2)} milliseconds<br>
+          <strong>Sitemap:</strong> ${checkForSitemap(response)}<br>
+          <strong>Checked Time:</strong> ${currentTime}
+        `;
+        document.getElementById('result').innerHTML = resultHtml;
+
+        // Update checked list
+        const checkedList = JSON.parse(localStorage.getItem('checkedList')) || [];
+        checkedList.unshift({ 
+          url, 
+          loadTime, 
+          ttfb, 
+          dnsLookupTime, 
+          connectionTime, 
+          downloadTime, 
+          totalTime,
+          status: response.status, 
+          checkedTime: currentTime 
+        });
+        localStorage.setItem('checkedList', JSON.stringify(checkedList));
+        updateCheckedList();
+      })
+      .catch(error => {
+        console.error('Error fetching data:', error);
+        document.getElementById('result').innerHTML = `<strong>Error:</strong> ${error.message}`;
+      });
+  });
+
+  function checkForSitemap(response) {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/xml')) {
+      return 'Sitemap found';
+    } else {
+      return 'No sitemap found';
+    }
+  }
+
+  function updateCheckedList() {
+    const checkedList = JSON.parse(localStorage.getItem('checkedList')) || [];
+    const listHtml = checkedList.map(item => {
+      const url = item.url || '';
+      const loadTime = item.loadTime ? item.loadTime.toFixed(2) : '';
+      const ttfb = item.ttfb ? item.ttfb.toFixed(2) : '';
+      const dnsLookupTime = item.dnsLookupTime ? item.dnsLookupTime.toFixed(2) : '';
+      const connectionTime = item.connectionTime ? item.connectionTime.toFixed(2) : '';
+      const downloadTime = item.downloadTime ? item.downloadTime.toFixed(2) : '';
+      const totalTime = item.totalTime ? item.totalTime.toFixed(2) : '';
+      const status = item.status || '';
+      const checkedTime = item.checkedTime || '';
+
+      return `
+        <div>
+          <strong>Website:</strong> ${url}<br>
+          <strong>Load Time:</strong> ${loadTime} milliseconds<br>
+          <strong>TTFB:</strong> ${ttfb} milliseconds<br>
+          <strong>DNS Lookup Time:</strong> ${dnsLookupTime} milliseconds<br>
+          <strong>Connection Time:</strong> ${connectionTime} milliseconds<br>
+          <strong>Download Time:</strong> ${downloadTime} milliseconds<br>
+          <strong>Total Time:</strong> ${totalTime} milliseconds<br>
+          <strong>Status Code:</strong> ${status}<br>
+          <strong>Checked Time:</strong> ${checkedTime}
+        </div>
+        <hr>
+      `;
+    }).join('');
+    document.getElementById('checked-list').innerHTML = `<strong>Checked Websites:</strong><br>${listHtml}`;
+  }
+
+  // Initial update of checked list
+  updateCheckedList();
+</script>
+</body>
+</html>
